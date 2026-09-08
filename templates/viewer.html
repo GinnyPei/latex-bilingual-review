@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaTeX bilingual review</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<style>
+  :root {
+    --bg:#f6f3ec; --paper:#fffdf8; --ink:#1c1917; --muted:#57534e;
+    --line:#e7e5e4; --en:#1e3a5f; --zh:#3f2d1c; --mark:#fde68a; --accent:#9a3412;
+    --del:#b91c1c; --del-bg:#fee2e2; --ins:#166534; --ins-bg:#dcfce7;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; display:flex; flex-direction:column; overflow:hidden; font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Noto Serif SC",serif; background:var(--bg); color:var(--ink); }
+  header { flex-shrink:0; background:#fffdf8; border-bottom:1px solid var(--line); padding:14px 22px 12px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .meta { font-size:13px; color:var(--muted); line-height:1.45; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; align-items:center; }
+  button,.file-btn { font:inherit; font-size:13px; border:1px solid #d6d3d1; background:#fff; padding:5px 10px; border-radius:6px; cursor:pointer; }
+  button.primary { background:#1c1917; color:#fff; border-color:#1c1917; }
+  button.active { background:#9a3412; color:#fff; border-color:#9a3412; }
+  .count { font-size:13px; color:var(--accent); }
+  .shell { flex:1; display:flex; min-height:0; }
+  main { flex:1; min-width:0; overflow:auto; padding:18px 22px 48px; }
+  .sec-head { margin:28px 0 12px; padding-bottom:6px; border-bottom:2px solid #1c1917; font-size:20px; }
+  .sub-head { margin:22px 0 8px; font-size:16px; color:#44403c; }
+  .pair { background:var(--paper); border:1px solid var(--line); border-radius:10px; margin:10px 0 16px; overflow:hidden; }
+  .pair-id { font-size:11px; letter-spacing:.04em; color:var(--muted); padding:7px 12px 0; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .cols.single { grid-template-columns:minmax(0,1fr); }
+  .col { padding:10px 14px 14px; line-height:1.62; font-size:15.2px; min-width:0; }
+  .col.en { border-right:1px solid var(--line); color:var(--en); }
+  .col.zh { color:var(--zh); }
+  .col h4 { margin:0 0 8px; font-size:13px; color:var(--muted); }
+  .col .txt { overflow-wrap:anywhere; word-break:break-word; }
+  .eq { margin:10px 0; overflow-x:auto; text-align:center; }
+  del.wdel { color:var(--del); background:var(--del-bg); text-decoration:line-through; overflow-wrap:anywhere; }
+  ins.wins { color:var(--ins); background:var(--ins-bg); text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere; }
+  .cite,.ref { font-size:0.92em; color:#78716c; }
+  .tex-list { margin:0.45em 0 0.2em 1.25em; padding:0; }
+  .tex-list li { margin:0.25em 0; }
+  mark.hl { background:var(--mark); padding:0 .05em; border-radius:2px; }
+  .pair.has-comment { box-shadow:inset 3px 0 0 var(--accent); }
+  #sel-btn { position:absolute; display:none; z-index:40; background:var(--accent); color:#fff; border:0; padding:6px 10px; border-radius:6px; font-size:13px; }
+  #panel { width:min(360px, 34vw); flex-shrink:0; display:flex; flex-direction:column; background:#fff; border-left:1px solid var(--line); min-height:0; }
+  body.panel-hidden #panel { display:none; }
+  #panel header.ph { flex-shrink:0; position:static; padding:10px 14px; border:0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }
+  #comments { overflow:auto; padding:8px 12px 16px; flex:1; min-height:0; }
+  .cmt { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; font-size:13.5px; cursor:pointer; }
+  .cmt:hover { border-color:#d6d3d1; background:#fafaf9; }
+  .cmt .q { color:var(--muted); font-style:italic; margin:4px 0; }
+  .cmt .t { font-size:11px; color:#a8a29e; }
+  .cmt .del { float:right; font-size:12px; color:#b91c1c; background:none; border:0; cursor:pointer; }
+  #composer { display:none; flex-shrink:0; padding:10px 12px; border-bottom:1px solid var(--line); }
+  #composer.visible { display:block; }
+  #composer textarea { width:100%; min-height:72px; font:inherit; font-size:14px; padding:8px; border:1px solid #d6d3d1; border-radius:6px; }
+  .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#1c1917; color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; display:none; z-index:50; }
+  .legend { font-size:12px; color:var(--muted); }
+  .legend del.wdel,.legend ins.wins { font-style:normal; padding:0 3px; }
+  @media (max-width:900px){
+    html, body { height:auto; overflow:auto; }
+    .shell { flex-direction:column; }
+    .cols{grid-template-columns:minmax(0,1fr);}
+    .col.en{border-right:0;border-bottom:1px solid var(--line);}
+    #panel{width:100%; height:min(42vh,420px); border-left:0; border-top:1px solid var(--line);}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="doc-title">审阅</h1>
+  <div class="meta" id="doc-meta"></div>
+  <div class="toolbar">
+    <span class="count" id="count">0 条批注</span>
+    <button type="button" id="mode-bi">中英对照</button>
+    <button type="button" id="mode-diff">Word 审阅</button>
+    <button type="button" id="mode-both">对照 + 审阅</button>
+    <button class="primary" type="button" id="btn-export">导出批注到文件</button>
+    <label class="file-btn">导入批注<input type="file" id="btn-import" accept="application/json,.json" hidden></label>
+    <button type="button" id="btn-clear">清空本地批注</button>
+    <button type="button" id="btn-toggle">隐藏批注栏</button>
+    <span class="legend"><del class="wdel">删除</del> <ins class="wins">插入</ins> · 划选文字添加批注</span>
+  </div>
+</header>
+<div class="shell">
+<main id="main"></main>
+<aside id="panel">
+  <header class="ph"><strong>批注</strong><span id="save-state">仅浏览器本地</span></header>
+  <div id="composer">
+    <div class="q" id="comp-quote"></div>
+    <textarea id="comp-text" placeholder="写下批注…"></textarea>
+    <div class="toolbar">
+      <button class="primary" type="button" id="comp-save">保存</button>
+      <button type="button" id="comp-cancel">取消</button>
+    </div>
+  </div>
+  <div id="comments"></div>
+</aside>
+</div>
+<button id="sel-btn" type="button">添加批注</button>
+<div class="toast" id="toast"></div>
+<script>
+const DATA = /*__REVIEW_DATA__*/null;
+const KEY = (DATA && DATA.storage_key) || "lbr-review";
+let MODE = DATA && DATA.has_diff ? "both" : "bi";
+
+function esc(s) {
+  return String(s || "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+}
+function fixMathInner(inner) {
+  return String(inner || "").replace(/\\{2,}([a-zA-Z]+)/g, "\\$1");
+}
+function normalizeMath(s) {
+  let t = String(s || "");
+  for (let i = 0; i < 4; i++) {
+    if (!t.includes("\\\\(") && !t.includes("\\\\[") && !t.includes("\\\\)")) break;
+    t = t.replaceAll("\\\\(", "\\(").replaceAll("\\\\)", "\\)")
+         .replaceAll("\\\\[", "\\[").replaceAll("\\\\]", "\\]");
+  }
+  t = t.replace(/\\\(([\s\S]+?)\\\)/g, (_, m) => "$" + m + "$");
+  t = t.replace(/\$([^$]+)\$/g, (_, inner) => "$" + fixMathInner(inner) + "$");
+  return t;
+}
+function latexHtml(s) {
+  let raw = normalizeMath(s);
+  const env = raw.match(/^\\begin\{(equation\*?|align\*?|displaymath)\}([\s\S]*)\\end\{\1\}\s*$/);
+  if (env) return '<div class="eq">' + esc("\\[" + env[2].trim() + "\\]") + "</div>";
+  if (/^\\\[/.test(raw)) return '<div class="eq">' + esc(raw) + "</div>";
+  return texToHtml(raw);
+}
+
+function texToHtml(raw) {
+  const math = [];
+  let t = String(raw || "").replace(/\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\\\[[\s\S]+?\\\]/g, m => {
+    math.push(m);
+    return "\0M" + (math.length - 1) + "\0";
+  });
+  t = t.replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g, (_, kind, body) => {
+    const tag = kind === "enumerate" ? "ol" : "ul";
+    const items = body.split(/\\item\b/).map(x => x.trim()).filter(Boolean);
+    return "<" + tag + ' class="tex-list">' + items.map(it => "<li>" + texInline(it, math) + "</li>").join("") + "</" + tag + ">";
+  });
+  return texInline(t, math);
+}
+
+function texInline(t, math) {
+  const html = [];
+  const keep = h => { html.push(h); return "\0H" + (html.length - 1) + "\0"; };
+  t = t.replace(/\\cite[tp]?\*?(\[[^\]]*\])?\{([^}]+)\}/g, (_, _o, keys) => {
+    const list = keys.split(",").map(k => k.trim()).filter(Boolean);
+    return keep('<span class="cite">[' + list.map(esc).join(", ") + "]</span>");
+  });
+  t = t.replace(/\\(eqref|Cref|cref|autoref|ref)\{([^}]+)\}/g, (_, cmd, key) => {
+    const inner = cmd === "eqref" ? "(" + esc(key) + ")" : "[" + esc(key) + "]";
+    return keep('<span class="ref">' + inner + "</span>");
+  });
+  t = t.replace(/\\(textbf|emph|textit|texttt|textsc)\{([^{}]*)\}/g, (_, cmd, inner) => {
+    const tag = {textbf:"strong", emph:"em", textit:"em", texttt:"code", textsc:"span"}[cmd];
+    return keep("<" + tag + ">" + esc(inner) + "</" + tag + ">");
+  });
+  t = t.replace(/\\%/g, "%").replace(/\\&/g, "&").replace(/\\_/g, "_");
+  t = t.replace(/\\ /g, " ").replace(/~/g, "\u00a0").replace(/\\,/g, " ");
+  t = t.replace(/\\(?:noindent|medskip|smallskip|bigskip|centering)\b/g, "");
+  t = t.replace(/---/g, "—").replace(/--/g, "–");
+  t = esc(t);
+  t = t.replace(/\0H(\d+)\0/g, (_, i) => html[+i]);
+  t = t.replace(/\0M(\d+)\0/g, (_, i) => math[+i]);
+  return t;
+}
+function spansHtml(spans) {
+  if (!spans || !spans.length) return "";
+  return spans.map(s => {
+    const t = latexHtml(s.text);
+    if (s.op === "del") return '<del class="wdel">' + t + "</del>";
+    if (s.op === "ins") return '<ins class="wins">' + t + "</ins>";
+    return t;
+  }).join("");
+}
+
+function render() {
+  document.title = (DATA && DATA.title) || "审阅";
+  document.getElementById("doc-title").textContent = (DATA && DATA.title) || "审阅";
+  const meta = [];
+  if (DATA && DATA.source) meta.push("源文件 " + DATA.source);
+  if (DATA && DATA.old_ref) meta.push("对比 " + DATA.old_ref);
+  meta.push("批注只在浏览器本地；点「导出批注到文件」后覆盖 review/" + ((DATA && DATA.comments_file) || "comments.json"));
+  document.getElementById("doc-meta").textContent = meta.join(" · ");
+  document.getElementById("mode-bi").classList.toggle("active", MODE === "bi");
+  document.getElementById("mode-diff").classList.toggle("active", MODE === "diff");
+  document.getElementById("mode-both").classList.toggle("active", MODE === "both");
+  document.getElementById("mode-diff").style.display = DATA && DATA.has_diff ? "" : "none";
+  document.getElementById("mode-both").style.display = DATA && DATA.has_diff ? "" : "none";
+
+  const html = [];
+  for (const u of (DATA && DATA.units) || []) {
+    if (u.kind === "sec") {
+      html.push('<h2 class="sec-head" id="u-' + u.id + '">' + esc(u.en) + (u.zh ? " / " + esc(u.zh) : "") + "</h2>");
+      continue;
+    }
+    if (u.kind === "sub") {
+      html.push('<h3 class="sub-head" id="u-' + u.id + '">' + esc(u.en) + (u.zh ? " / " + esc(u.zh) : "") + "</h3>");
+      continue;
+    }
+    const enBody = (MODE !== "bi" && u.spans && u.spans.length)
+      ? spansHtml(u.spans)
+      : latexHtml(u.en || "");
+    const showZh = MODE !== "diff";
+    const single = !showZh;
+    html.push(
+      '<article class="pair" id="pair-' + u.id + '" data-id="' + u.id + '">' +
+        '<div class="pair-id">' + esc(u.id) + " · §" + esc(u.sec) + (u.kind === "eq" ? " · eq" : "") + "</div>" +
+        '<div class="cols' + (single ? " single" : "") + '">' +
+          '<div class="col en" data-side="' + (MODE === "bi" ? "en" : "diff") + '"><h4>' +
+            (MODE === "bi" ? "English" : "English · Word 审阅") + "</h4><div class=\"txt\">" + enBody + "</div></div>" +
+          (showZh ? '<div class="col zh" data-side="zh"><h4>中文</h4><div class="txt">' + latexHtml(u.zh || "（待译）") + "</div></div>" : "") +
+        "</div></article>"
+    );
+  }
+  document.getElementById("main").innerHTML = html.join("");
+  typesetMath();
+  renderComments();
+}
+
+function typesetMath() {
+  const root = document.getElementById("main");
+  if (!window.renderMathInElement || !root) return false;
+  renderMathInElement(root, {
+    delimiters: [
+      {left:"\\[", right:"\\]", display:true},
+      {left:"\\(", right:"\\)", display:false},
+      {left:"$$", right:"$$", display:true},
+      {left:"$", right:"$", display:false}
+    ],
+    throwOnError: false
+  });
+  paintHighlights();
+  return true;
+}
+
+function loadComments() {
+  try {
+    const local = localStorage.getItem(KEY);
+    if (local) return JSON.parse(local);
+    if (DATA && Array.isArray(DATA.comments) && DATA.comments.length) {
+      localStorage.setItem(KEY, JSON.stringify(DATA.comments));
+      return DATA.comments;
+    }
+  } catch {}
+  return [];
+}
+function saveComments(list) {
+  localStorage.setItem(KEY, JSON.stringify(list));
+  renderComments();
+  paintHighlights();
+  document.getElementById("count").textContent = list.length + " 条批注";
+  document.getElementById("save-state").textContent = "已保存 · " + new Date().toLocaleTimeString();
+}
+
+function renderComments() {
+  const list = loadComments();
+  const box = document.getElementById("comments");
+  document.getElementById("count").textContent = list.length + " 条批注";
+  if (!list.length) {
+    box.innerHTML = "<p class='meta'>划选正文后点「添加批注」。批注只在本机浏览器；要写入仓库请「导出批注到文件」再覆盖 review 里的同名 JSON。</p>";
+    return;
+  }
+  box.innerHTML = list.slice().reverse().map(c =>
+    '<div class="cmt" data-id="' + c.id + '">' +
+      '<button class="del" data-del="' + c.id + '">删除</button>' +
+      '<div class="t">' + esc(c.paraId) + " · " + esc(c.side) + " · " + esc((c.createdAt || "").replace("T"," ").slice(0,19)) + "</div>" +
+      '<div class="q">「' + esc(c.quote) + "」</div>" +
+      "<div>" + esc(c.comment) + "</div></div>"
+  ).join("");
+  box.querySelectorAll("[data-del]").forEach(btn => {
+    btn.onclick = () => saveComments(loadComments().filter(c => c.id !== btn.dataset.del));
+  });
+  box.querySelectorAll(".cmt").forEach(el => {
+    el.onclick = ev => {
+      if (ev.target.dataset.del) return;
+      const pair = document.getElementById("pair-" + el.dataset.id);
+      const c = loadComments().find(x => x.id === el.dataset.id);
+      const target = c && document.getElementById("pair-" + c.paraId);
+      if (target) target.scrollIntoView({behavior:"smooth", block:"center"});
+    };
+  });
+}
+
+function paintHighlights() {
+  document.querySelectorAll(".pair").forEach(p => p.classList.remove("has-comment"));
+  document.querySelectorAll("mark.hl").forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  for (const c of loadComments()) {
+    const pair = document.getElementById("pair-" + c.paraId);
+    if (!pair) continue;
+    pair.classList.add("has-comment");
+    const col = pair.querySelector('.col[data-side="' + c.side + '"] .txt') || pair.querySelector(".txt");
+    if (!col || !c.quote) continue;
+    const walker = document.createTreeWalker(col, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const i = node.nodeValue.indexOf(c.quote);
+      if (i < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, i);
+      range.setEnd(node, i + c.quote.length);
+      const mark = document.createElement("mark");
+      mark.className = "hl";
+      try { range.surroundContents(mark); } catch {}
+      break;
+    }
+  }
+}
+
+let pending = null;
+const selBtn = document.getElementById("sel-btn");
+document.addEventListener("mouseup", e => {
+  if (selBtn.contains(e.target)) return;
+  const sel = window.getSelection();
+  const text = sel && String(sel).trim();
+  if (!text || text.length < 2) { selBtn.style.display = "none"; return; }
+  const node = sel.anchorNode && sel.anchorNode.parentElement;
+  const col = node && node.closest(".col");
+  const pair = node && node.closest(".pair");
+  if (!col || !pair) { selBtn.style.display = "none"; return; }
+  pending = { paraId: pair.dataset.id, side: col.dataset.side || "en", quote: text };
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  selBtn.style.left = (window.scrollX + r.left) + "px";
+  selBtn.style.top = (window.scrollY + r.bottom + 6) + "px";
+  selBtn.style.display = "block";
+});
+selBtn.onclick = () => {
+  if (!pending) return;
+  document.getElementById("comp-quote").textContent = "「" + pending.quote.slice(0, 240) + "」 · " + pending.paraId;
+  document.getElementById("comp-text").value = "";
+  document.getElementById("composer").classList.add("visible");
+  document.getElementById("comp-text").focus();
+  selBtn.style.display = "none";
+};
+document.getElementById("comp-cancel").onclick = () => { document.getElementById("composer").classList.remove("visible"); pending = null; };
+document.getElementById("comp-save").onclick = () => {
+  const text = document.getElementById("comp-text").value.trim();
+  if (!text || !pending) return;
+  const list = loadComments();
+  list.push({ id: "c" + Date.now(), paraId: pending.paraId, side: pending.side, quote: pending.quote, comment: text, createdAt: new Date().toISOString() });
+  saveComments(list);
+  document.getElementById("composer").classList.remove("visible");
+  pending = null;
+  toast("已写入浏览器本地，尚未写入仓库文件");
+};
+
+document.getElementById("btn-export").onclick = () => {
+  const blob = new Blob([JSON.stringify(loadComments(), null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (DATA && DATA.comments_file) || "comments.json";
+  a.click();
+  toast("已下载。浏览器不能直接改仓库文件，请用下载的文件覆盖 review/" + ((DATA && DATA.comments_file) || "comments.json"));
+};
+document.getElementById("btn-import").onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data)) throw 0;
+      saveComments(data);
+      toast("已导入 " + data.length + " 条");
+    } catch { toast("JSON 无效"); }
+  };
+  r.readAsText(f);
+  e.target.value = "";
+};
+document.getElementById("btn-clear").onclick = () => { if (confirm("清空本机批注？")) saveComments([]); };
+function setPanelOpen(on) {
+  document.body.classList.toggle("panel-hidden", !on);
+  document.getElementById("btn-toggle").textContent = on ? "隐藏批注栏" : "显示批注栏";
+  try { localStorage.setItem(KEY + "-panel", on ? "1" : "0"); } catch {}
+}
+document.getElementById("btn-toggle").onclick = () => {
+  setPanelOpen(document.body.classList.contains("panel-hidden"));
+};
+try {
+  if (localStorage.getItem(KEY + "-panel") === "0") setPanelOpen(false);
+} catch {}
+document.getElementById("mode-bi").onclick = () => { MODE = "bi"; render(); };
+document.getElementById("mode-diff").onclick = () => { MODE = "diff"; render(); };
+document.getElementById("mode-both").onclick = () => { MODE = "both"; render(); };
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.style.display = "block";
+  setTimeout(() => el.style.display = "none", 2000);
+}
+
+if (!DATA || !DATA.units) {
+  document.getElementById("main").innerHTML = "<p>未注入审阅数据。请用 scripts/build_review.py 生成此页。</p>";
+} else {
+  render();
+  window.addEventListener("load", () => {
+    if (!typesetMath()) {
+      let n = 0;
+      const t = setInterval(() => { if (typesetMath() || ++n > 20) clearInterval(t); }, 150);
+    }
+  });
+}
+</script>
+</body>
+</html>
