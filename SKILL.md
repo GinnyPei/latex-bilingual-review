@@ -13,6 +13,8 @@ description: >-
 
 把 `.tex` 做成可划词批注的 HTML：逐段中英对照，并可对历史版本做 **Word 审阅粒度**（词级增删线）对比。批注写入 localStorage，并导出 JSON 以便入库。
 
+**只通过 `scripts/build_review.py` 出 HTML。** 它从 `templates/viewer.html` 注入数据并自检。第一版交给用户的页面就必须能用：列表是项目符号、划词出现「添加批注」、黄底盖住含公式 / 引用 / 审阅标记的整段选区、右侧是**整页一条批注栏**（顶栏整栏开关，栏内卡片对齐划选行）。不要手改 `review/*.html`，也不要先交一版再补功能。
+
 ## 何时用
 
 - 「生成全文中英对照」「第四五章对照」
@@ -44,7 +46,7 @@ review/
 - [ ] 2 抽段：scripts/extract_tex.py
 - [ ] 3 若要比历史：再抽旧版，scripts/align_diff.py
 - [ ] 4 为每个正文单位写中文（agent 翻译，不调用机翻 API）
-- [ ] 5 scripts/build_review.py 生成 HTML
+- [ ] 5 scripts/build_review.py 生成 HTML（写盘即自检，失败则未完成）
 - [ ] 6 打开 HTML，说明批注如何保存
 ```
 
@@ -98,6 +100,7 @@ python3 "$SKILL_DIR/scripts/align_diff.py" \
 
 - 学术书面语，术语与正文一致（change energy、prefill、KV cache 等可保留英文）。
 - 公式左右两栏保持同一 TeX，不要翻译符号。行内公式写成 `$...$`（与抽段英文一致），不要写 `\\(` / `\\)`；`json.dumps` 会自己转义，再手写一层会显示成 `\\(\alpha\\)`。
+- 列表保留 `\begin{itemize}` / `\item` / `\end{itemize}`（`enumerate` 同理）。`zh` 写 LaTeX 列表宏，不要写 `<ul>`。
 - 标题也写中文（`zh` 字段）。
 - 把译文写回 JSON，不要另起一份手写 HTML。
 - 全文可按章节分批写回同一 JSON；未译的 `zh` 留空，页面显示「（待译）」。
@@ -114,28 +117,29 @@ python3 "$SKILL_DIR/scripts/build_review.py" \
 
 无历史 diff 时把 `current.json`（已含 `zh`）传给 `build_review.py`。
 
-`build_review.py` 会把 sidecar 里已有批注嵌进 HTML（本机无 localStorage 时作为初始值），并在 `review/vendor/katex/` 缺失时从本 skill 的 `vendor/katex` 复制。
+`build_review.py` 从 `templates/viewer.html` 注入数据，复制 KaTeX（若需要），并把 sidecar 批注嵌进页面。写盘后对**这一份** HTML 跑列表 / 划词按钮 / 高亮 / 全局批注栏四项检查，失败则非 0 退出。退出非 0 时任务未完成，不要把该文件交给用户。
+
+第一版页面行为由模板保证，见 [reference.md](reference.md) 的「第一版 HTML」。
 
 ### 6 告诉用户怎么批注
 
-- 浏览器打开生成的 HTML（路径用 file:// 即可）。
-- 布局：左侧正文（中英对照），**右侧固定批注分栏**，互不遮挡；「显示 / 隐藏批注栏」收起右侧栏。窄屏时批注栏改到正文下方。
-- 划选任一侧文字 →「添加批注」。
-- 批注只写入浏览器 localStorage，**不会**自动改仓库里的 `review/<stem>_comments.json`（file:// 页面没有写盘权限）。
-- 「导出批注到文件」下载 JSON，再手动覆盖 `review/<stem>_comments.json` 才能入库。
-- 「导入 JSON」从该文件恢复。
+- 用 Chrome / Safari / Edge 打开生成的 HTML（file:// 即可）。
+- 划选任一侧文字 →「添加批注」→ 保存。右侧是**整页一条批注栏**，卡片顶端对齐划选第一行。
+- 「隐藏批注栏 / 显示批注栏」整栏开关。
+- 批注只在浏览器 localStorage。要入库：导出 JSON，覆盖 `review/<stem>_comments.json`。可用「导入 JSON」恢复。
 
 ## 硬规则
 
 - 不把批注写进 `.tex`。
 - 不编造旧版没有的句子来「对齐」。
 - 译文忠实，不借翻译改技术含义。
-- 中文公式分隔符与英文相同：`$...$`、`\[...\]`。禁止在 JSON 的 `zh` 里写 `\\(`。生成交给 `build_review.py`（它会把残留的 `\\(` 还原并改成 `$`）。
-- 页面负责把 `\cite` / `\ref` / `\emph` / `itemize` 等收成可读标记；两栏用 `minmax(0,1fr)` 等宽，避免长 citation 撑破中文栏。
+- 中文公式分隔符与英文相同：`$...$`、`\[...\]`。禁止在 JSON 的 `zh` 里写 `\\(`。
+- 只通过 `build_review.py` 出 HTML；检查失败不准当完成。
 - 对照页不是论文编译产物；改稿仍以 `.tex` 为准。
 
 ## 附加文件
 
 - 对用户怎么说、产物是什么：[examples.md](examples.md)
-- 抽段 / diff / JSON 约定：[reference.md](reference.md)
-- 页面行为：[templates/viewer.html](templates/viewer.html)
+- 抽段 / diff / JSON / 第一版 HTML 约定：[reference.md](reference.md)
+- 页面实现：[templates/viewer.html](templates/viewer.html)
+- 第一版验收：[evals/](evals/) · `scripts/check_list_html.py` · `check_sel_btn.py` · `check_highlight.py` · `check_margin.py`

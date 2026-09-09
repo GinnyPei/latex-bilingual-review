@@ -6,6 +6,8 @@ import argparse
 import json
 import re
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 MATH_FIELD = ("en", "zh", "old_en")
@@ -69,6 +71,33 @@ def ensure_katex(html_out: Path) -> None:
     print(f"copied KaTeX to {dest}")
 
 
+def verify_generated(html_out: Path) -> None:
+    """First build must ship working highlight/button code; do not wait for a second pass."""
+    checks = (
+        SKILL_DIR / "scripts" / "check_list_html.py",
+        SKILL_DIR / "scripts" / "check_sel_btn.py",
+        SKILL_DIR / "scripts" / "check_highlight.py",
+        SKILL_DIR / "scripts" / "check_margin.py",
+    )
+    for script in checks:
+        if not script.exists():
+            raise SystemExit(f"missing {script.name}; first-build verify cannot run")
+        proc = subprocess.run(
+            [sys.executable, str(script), str(html_out)],
+            cwd=str(SKILL_DIR),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            sys.stderr.write(proc.stdout or "")
+            sys.stderr.write(proc.stderr or "")
+            raise SystemExit(f"first-build check failed: {script.name}")
+        extra = (proc.stdout or "").strip()
+        if extra:
+            print(extra)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("review_json")
@@ -105,6 +134,7 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     ensure_katex(out)
+    verify_generated(out)
     print(f"wrote {out}")
     print(f"comments sidecar: {comments_path}")
 

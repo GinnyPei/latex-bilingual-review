@@ -24,8 +24,14 @@
   button.primary { background:#1c1917; color:#fff; border-color:#1c1917; }
   button.active { background:#9a3412; color:#fff; border-color:#9a3412; }
   .count { font-size:13px; color:var(--accent); }
-  .shell { flex:1; display:flex; min-height:0; }
-  main { flex:1; min-width:0; overflow:auto; padding:18px 22px 48px; }
+  .shell { flex:1; min-height:0; overflow:auto; }
+  .page { display:grid; grid-template-columns:minmax(0,1fr) min(300px, 32vw); align-items:start; position:relative; min-height:100%; }
+  body.notes-hidden .page { grid-template-columns:minmax(0,1fr); }
+  body.notes-hidden #margin { display:none; }
+  main { min-width:0; padding:18px 18px 48px 22px; }
+  #margin { position:relative; min-height:100%; border-left:1px solid var(--line); background:#fffefb; }
+  #margin-cards { position:relative; min-height:100%; }
+  .margin-hint { padding:14px 12px; font-size:13px; color:var(--muted); }
   .sec-head { margin:28px 0 12px; padding-bottom:6px; border-bottom:2px solid #1c1917; font-size:20px; }
   .sub-head { margin:22px 0 8px; font-size:16px; color:#44403c; }
   .pair { background:var(--paper); border:1px solid var(--line); border-radius:10px; margin:10px 0 16px; overflow:hidden; }
@@ -44,18 +50,17 @@
   .tex-list { margin:0.45em 0 0.2em 1.25em; padding:0; }
   .tex-list li { margin:0.25em 0; }
   mark.hl { background:var(--mark); padding:0 .05em; border-radius:2px; }
+  .katex.hl-math { background:var(--mark); border-radius:2px; }
+  ::highlight(lbr-comment) { background-color:var(--mark); color:inherit; }
   .pair.has-comment { box-shadow:inset 3px 0 0 var(--accent); }
-  #sel-btn { position:absolute; display:none; z-index:40; background:var(--accent); color:#fff; border:0; padding:6px 10px; border-radius:6px; font-size:13px; }
-  #panel { width:min(360px, 34vw); flex-shrink:0; display:flex; flex-direction:column; background:#fff; border-left:1px solid var(--line); min-height:0; }
-  body.panel-hidden #panel { display:none; }
-  #panel header.ph { flex-shrink:0; position:static; padding:10px 14px; border:0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }
-  #comments { overflow:auto; padding:8px 12px 16px; flex:1; min-height:0; }
-  .cmt { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; font-size:13.5px; cursor:pointer; }
-  .cmt:hover { border-color:#d6d3d1; background:#fafaf9; }
-  .cmt .q { color:var(--muted); font-style:italic; margin:4px 0; }
+  #sel-btn { position:fixed; display:none; z-index:40; background:var(--accent); color:#fff; border:0; padding:6px 10px; border-radius:6px; font-size:13px; }
+  .cmt, #composer { position:absolute; left:8px; right:8px; border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:6px; padding:8px 10px; background:#fff; font-size:13.5px; box-shadow:0 1px 2px rgba(28,25,23,.04); }
+  .cmt { cursor:pointer; }
+  .cmt:hover, .cmt.active { border-color:#d6d3d1; background:#fffdf8; }
+  .cmt .q, #comp-quote { color:var(--muted); font-style:italic; margin:4px 0; font-size:12.5px; }
   .cmt .t { font-size:11px; color:#a8a29e; }
   .cmt .del { float:right; font-size:12px; color:#b91c1c; background:none; border:0; cursor:pointer; }
-  #composer { display:none; flex-shrink:0; padding:10px 12px; border-bottom:1px solid var(--line); }
+  #composer { display:none; z-index:6; }
   #composer.visible { display:block; }
   #composer textarea { width:100%; min-height:72px; font:inherit; font-size:14px; padding:8px; border:1px solid #d6d3d1; border-radius:6px; }
   .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#1c1917; color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; display:none; z-index:50; }
@@ -63,10 +68,11 @@
   .legend del.wdel,.legend ins.wins { font-style:normal; padding:0 3px; }
   @media (max-width:900px){
     html, body { height:auto; overflow:auto; }
-    .shell { flex-direction:column; }
+    .page { grid-template-columns:minmax(0,1fr); }
+    #margin { border-left:0; border-top:1px solid var(--line); }
+    .cmt, #composer { position:static; margin:8px; }
     .cols{grid-template-columns:minmax(0,1fr);}
     .col.en{border-right:0;border-bottom:1px solid var(--line);}
-    #panel{width:100%; height:min(42vh,420px); border-left:0; border-top:1px solid var(--line);}
   }
 </style>
 </head>
@@ -83,23 +89,25 @@
     <label class="file-btn">导入批注<input type="file" id="btn-import" accept="application/json,.json" hidden></label>
     <button type="button" id="btn-clear">清空本地批注</button>
     <button type="button" id="btn-toggle">隐藏批注栏</button>
+    <span id="save-state" class="meta">仅浏览器本地</span>
     <span class="legend"><del class="wdel">删除</del> <ins class="wins">插入</ins> · 划选文字添加批注</span>
   </div>
 </header>
-<div class="shell">
-<main id="main"></main>
-<aside id="panel">
-  <header class="ph"><strong>批注</strong><span id="save-state">仅浏览器本地</span></header>
-  <div id="composer">
-    <div class="q" id="comp-quote"></div>
-    <textarea id="comp-text" placeholder="写下批注…"></textarea>
-    <div class="toolbar">
-      <button class="primary" type="button" id="comp-save">保存</button>
-      <button type="button" id="comp-cancel">取消</button>
-    </div>
+<div class="shell" id="shell">
+  <div class="page" id="page">
+    <main id="main"></main>
+    <aside id="margin" aria-label="批注栏">
+      <div id="margin-cards"></div>
+    </aside>
   </div>
-  <div id="comments"></div>
-</aside>
+</div>
+<div id="composer">
+  <div id="comp-quote"></div>
+  <textarea id="comp-text" placeholder="写下批注…"></textarea>
+  <div class="toolbar">
+    <button class="primary" type="button" id="comp-save">保存</button>
+    <button type="button" id="comp-cancel">取消</button>
+  </div>
 </div>
 <button id="sel-btn" type="button">添加批注</button>
 <div class="toast" id="toast"></div>
@@ -139,12 +147,17 @@ function texToHtml(raw) {
     math.push(m);
     return "\0M" + (math.length - 1) + "\0";
   });
+  // Park lists before texInline: it calls esc() on the leftover string, which
+  // would turn a real <ul> into visible &lt;ul&gt; (the 2026-09-09 bug).
+  const lists = [];
   t = t.replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g, (_, kind, body) => {
     const tag = kind === "enumerate" ? "ol" : "ul";
     const items = body.split(/\\item\b/).map(x => x.trim()).filter(Boolean);
-    return "<" + tag + ' class="tex-list">' + items.map(it => "<li>" + texInline(it, math) + "</li>").join("") + "</" + tag + ">";
+    lists.push("<" + tag + ' class="tex-list">' + items.map(it => "<li>" + texInline(it, math) + "</li>").join("") + "</" + tag + ">");
+    return "\0L" + (lists.length - 1) + "\0";
   });
-  return texInline(t, math);
+  t = texInline(t, math);
+  return t.replace(/\0L(\d+)\0/g, (_, i) => lists[+i]);
 }
 
 function texInline(t, math) {
@@ -173,12 +186,19 @@ function texInline(t, math) {
 }
 function spansHtml(spans) {
   if (!spans || !spans.length) return "";
-  return spans.map(s => {
-    const t = latexHtml(s.text);
-    if (s.op === "del") return '<del class="wdel">' + t + "</del>";
-    if (s.op === "ins") return '<ins class="wins">' + t + "</ins>";
-    return t;
+  // Stitch first so a word-level split still yields one complete itemize
+  // environment; per-span latexHtml would leave raw \begin{itemize}.
+  const raw = spans.map(s => {
+    if (s.op === "eq") return s.text || "";
+    if (s.op === "del") return "\0D\0" + (s.text || "") + "\0/D\0";
+    if (s.op === "ins") return "\0I\0" + (s.text || "") + "\0/I\0";
+    return s.text || "";
   }).join("");
+  return latexHtml(raw)
+    .replace(/\0D\0/g, '<del class="wdel">')
+    .replace(/\0\/D\0/g, "</del>")
+    .replace(/\0I\0/g, '<ins class="wins">')
+    .replace(/\0\/I\0/g, "</ins>");
 }
 
 function render() {
@@ -223,6 +243,7 @@ function render() {
   document.getElementById("main").innerHTML = html.join("");
   typesetMath();
   renderComments();
+  paintHighlights();
 }
 
 function typesetMath() {
@@ -260,94 +281,358 @@ function saveComments(list) {
   document.getElementById("save-state").textContent = "已保存 · " + new Date().toLocaleTimeString();
 }
 
-function renderComments() {
+function quoteRangeForComment(c) {
+  const pair = document.getElementById("pair-" + c.paraId);
+  if (!pair || !c.quote) return { pair, range: null };
+  const col = pair.querySelector('.col[data-side="' + c.side + '"] .txt') || pair.querySelector(".txt");
+  if (!col) return { pair, range: null };
+  const { nodes, full } = visibleTextNodes(col);
+  let off = null;
+  if (c.from != null && c.to != null && c.to > c.from) {
+    const slice = full.slice(c.from, c.to);
+    if (slice === c.quote || normSpace(slice) === normSpace(c.quote)) off = { start: c.from, end: c.to };
+  }
+  if (!off) off = findQuoteOffsets(full, c.quote);
+  if (!off) return { pair, range: null };
+  return { pair, range: rangeFromOffsets(nodes, off.start, off.end) };
+}
+function anchorTopIn(el, rangeOrNode) {
+  const box = el.getBoundingClientRect();
+  const r = rangeOrNode.getClientRects ? (rangeOrNode.getClientRects()[0] || rangeOrNode.getBoundingClientRect()) : rangeOrNode.getBoundingClientRect();
+  return r.top - box.top;
+}
+function layoutMarginComments() {
   const list = loadComments();
-  const box = document.getElementById("comments");
   document.getElementById("count").textContent = list.length + " 条批注";
-  if (!list.length) {
-    box.innerHTML = "<p class='meta'>划选正文后点「添加批注」。批注只在本机浏览器；要写入仓库请「导出批注到文件」再覆盖 review 里的同名 JSON。</p>";
+  const page = document.getElementById("page");
+  const cards = document.getElementById("margin-cards");
+  const composer = document.getElementById("composer");
+  const composing = composer.classList.contains("visible") && pending;
+  if (composer.parentElement && composer.parentElement.id === "margin-cards") {
+    document.body.appendChild(composer);
+  }
+  cards.innerHTML = "";
+  if (!list.length && !composing) {
+    cards.innerHTML = "<p class='margin-hint'>划选正文后点「添加批注」。卡片会出现在右侧栏、对齐划选行。</p>";
+    cards.style.minHeight = "";
     return;
   }
-  box.innerHTML = list.slice().reverse().map(c =>
-    '<div class="cmt" data-id="' + c.id + '">' +
-      '<button class="del" data-del="' + c.id + '">删除</button>' +
+  const placed = [];
+  for (const c of list) {
+    const el = document.createElement("div");
+    el.className = "cmt";
+    el.dataset.id = c.id;
+    el.innerHTML =
+      '<button class="del" type="button" data-del="' + c.id + '">删除</button>' +
       '<div class="t">' + esc(c.paraId) + " · " + esc(c.side) + " · " + esc((c.createdAt || "").replace("T"," ").slice(0,19)) + "</div>" +
       '<div class="q">「' + esc(c.quote) + "」</div>" +
-      "<div>" + esc(c.comment) + "</div></div>"
-  ).join("");
-  box.querySelectorAll("[data-del]").forEach(btn => {
-    btn.onclick = () => saveComments(loadComments().filter(c => c.id !== btn.dataset.del));
+      "<div>" + esc(c.comment) + "</div>";
+    cards.appendChild(el);
+    const loc = quoteRangeForComment(c);
+    const y = loc.range ? anchorTopIn(page, loc.range) : (loc.pair ? anchorTopIn(page, loc.pair) : 8);
+    placed.push({ el, y });
+  }
+  if (composing) {
+    cards.appendChild(composer);
+    const loc = quoteRangeForComment(pending);
+    const y = loc.range ? anchorTopIn(page, loc.range) : (pending.paraId && document.getElementById("pair-" + pending.paraId) ? anchorTopIn(page, document.getElementById("pair-" + pending.paraId)) : 8);
+    placed.push({ el: composer, y });
+  }
+  placed.sort((a, b) => a.y - b.y);
+  let last = 8;
+  const gap = 8;
+  for (const item of placed) {
+    let y = Math.max(8, item.y);
+    if (y < last) y = last;
+    item.el.style.top = y + "px";
+    last = y + item.el.offsetHeight + gap;
+  }
+  const mainH = document.getElementById("main").offsetHeight;
+  cards.style.minHeight = Math.max(last, mainH) + "px";
+  document.querySelectorAll(".cmt [data-del]").forEach(btn => {
+    btn.onclick = ev => {
+      ev.stopPropagation();
+      saveComments(loadComments().filter(c => c.id !== btn.dataset.del));
+    };
   });
-  box.querySelectorAll(".cmt").forEach(el => {
+  document.querySelectorAll(".cmt").forEach(el => {
     el.onclick = ev => {
       if (ev.target.dataset.del) return;
-      const pair = document.getElementById("pair-" + el.dataset.id);
+      document.querySelectorAll(".cmt.active").forEach(x => x.classList.remove("active"));
+      el.classList.add("active");
       const c = loadComments().find(x => x.id === el.dataset.id);
       const target = c && document.getElementById("pair-" + c.paraId);
-      if (target) target.scrollIntoView({behavior:"smooth", block:"center"});
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "nearest" });
     };
   });
 }
+function renderComments() {
+  layoutMarginComments();
+}
 
+function normSpace(s) {
+  return String(s || "").replace(/\s+/g, " ").trim();
+}
+function findQuoteOffsets(full, quote) {
+  if (!full || !quote) return null;
+  const q = String(quote);
+  const exact = full.indexOf(q);
+  if (exact >= 0) return { start: exact, end: exact + q.length };
+  const nq = normSpace(q);
+  if (!nq) return null;
+  const map = [];
+  let nf = "";
+  let prevSpace = true;
+  for (let k = 0; k < full.length; k++) {
+    const ch = full[k];
+    if (/\s/.test(ch)) {
+      if (!prevSpace) { nf += " "; map.push(k); }
+      prevSpace = true;
+    } else {
+      nf += ch;
+      map.push(k);
+      prevSpace = false;
+    }
+  }
+  let j = nf.indexOf(nq);
+  let used = nq.length;
+  if (j < 0) {
+    const minLen = Math.min(12, nq.length);
+    for (let len = nq.length - 1; len >= minLen; len--) {
+      j = nf.indexOf(nq.slice(0, len));
+      if (j >= 0) { used = len; break; }
+    }
+  }
+  if (j < 0) return null;
+  const start = map[j];
+  const last = map[Math.min(j + used - 1, map.length - 1)];
+  return { start, end: last + 1 };
+}
+function isHiddenText(node) {
+  const el = node.parentElement;
+  if (!el) return false;
+  if (el.closest(".katex-mathml")) return true;
+  if (el.closest(".katex") && el.closest("[aria-hidden='true']") && !el.closest(".katex-html")) return true;
+  return false;
+}
+function visibleTextNodes(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+      if (isHiddenText(node)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  let full = "";
+  let node;
+  while ((node = walker.nextNode())) {
+    nodes.push({ node, start: full.length, end: full.length + node.nodeValue.length });
+    full += node.nodeValue;
+  }
+  return { nodes, full };
+}
+function rangeFromOffsets(nodes, start, end) {
+  let startNode, startOff, endNode, endOff;
+  for (const n of nodes) {
+    if (!startNode && start >= n.start && start < n.end) {
+      startNode = n.node;
+      startOff = start - n.start;
+    }
+    if (end > n.start && end <= n.end) {
+      endNode = n.node;
+      endOff = end - n.start;
+    }
+  }
+  if (!startNode && nodes.length && start === nodes[0].start) {
+    startNode = nodes[0].node;
+    startOff = 0;
+  }
+  if (!startNode || !endNode) return null;
+  const range = document.createRange();
+  try {
+    range.setStart(startNode, startOff);
+    range.setEnd(endNode, endOff);
+    return range;
+  } catch {
+    return null;
+  }
+}
+function offsetsOfRange(nodes, range) {
+  let start = null, end = null;
+  for (const n of nodes) {
+    if (n.node === range.startContainer && range.startContainer.nodeType === 3) start = n.start + range.startOffset;
+    if (n.node === range.endContainer && range.endContainer.nodeType === 3) end = n.start + range.endOffset;
+  }
+  if (start != null && end != null) {
+    if (start > end) { const t = start; start = end; end = t; }
+    return { start, end };
+  }
+  for (const n of nodes) {
+    const len = n.node.nodeValue.length;
+    let firstIn = null, lastIn = null;
+    for (let o = 0; o <= len; o++) {
+      let c;
+      try { c = range.comparePoint(n.node, o); } catch { firstIn = null; break; }
+      if (c === 0) {
+        if (firstIn == null) firstIn = o;
+        lastIn = o;
+      }
+    }
+    if (firstIn != null) {
+      if (start == null) start = n.start + firstIn;
+      end = n.start + lastIn;
+    }
+  }
+  if (start == null || end == null || end <= start) return null;
+  return { start, end };
+}
+function quoteFromHit(hit, sel) {
+  const fallback = String(sel || "").trim();
+  const colTxt = hit.col.querySelector(".txt") || hit.col;
+  if (!sel || !sel.rangeCount) return { quote: fallback };
+  const { nodes, full } = visibleTextNodes(colTxt);
+  const off = offsetsOfRange(nodes, sel.getRangeAt(0));
+  if (!off) return { quote: fallback };
+  let start = off.start, end = off.end;
+  while (start < end && /\s/.test(full[start])) start++;
+  while (end > start && /\s/.test(full[end - 1])) end--;
+  const quote = full.slice(start, end);
+  return quote ? { quote, from: start, to: end } : { quote: fallback };
+}
+function applyMarkWrap(nodes, start, end) {
+  const slice = nodes.filter(n => n.end > start && n.start < end);
+  for (let i = slice.length - 1; i >= 0; i--) {
+    const n = slice[i];
+    const a = Math.max(start, n.start);
+    const b = Math.min(end, n.end);
+    if (a >= b) continue;
+    const parent = n.node.parentElement;
+    if (parent && parent.closest(".katex")) {
+      parent.closest(".katex").classList.add("hl-math");
+      continue;
+    }
+    const ls = a - n.start;
+    const le = b - n.start;
+    const node = n.node;
+    if (le < node.nodeValue.length) node.splitText(le);
+    const mid = ls > 0 ? node.splitText(ls) : node;
+    const mark = document.createElement("mark");
+    mark.className = "hl";
+    mid.parentNode.insertBefore(mark, mid);
+    mark.appendChild(mid);
+  }
+}
 function paintHighlights() {
   document.querySelectorAll(".pair").forEach(p => p.classList.remove("has-comment"));
-  document.querySelectorAll("mark.hl").forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  document.querySelectorAll("mark.hl").forEach(m => {
+    const p = m.parentNode;
+    if (!p) return;
+    while (m.firstChild) p.insertBefore(m.firstChild, m);
+    p.removeChild(m);
+    p.normalize();
+  });
+  document.querySelectorAll(".hl-math").forEach(el => el.classList.remove("hl-math"));
+  if (window.CSS && CSS.highlights) CSS.highlights.delete("lbr-comment");
+  const useApi = window.CSS && CSS.highlights && window.Highlight;
+  const hl = useApi ? new Highlight() : null;
   for (const c of loadComments()) {
     const pair = document.getElementById("pair-" + c.paraId);
     if (!pair) continue;
     pair.classList.add("has-comment");
     const col = pair.querySelector('.col[data-side="' + c.side + '"] .txt') || pair.querySelector(".txt");
     if (!col || !c.quote) continue;
-    const walker = document.createTreeWalker(col, NodeFilter.SHOW_TEXT);
-    let node;
-    while ((node = walker.nextNode())) {
-      const i = node.nodeValue.indexOf(c.quote);
-      if (i < 0) continue;
-      const range = document.createRange();
-      range.setStart(node, i);
-      range.setEnd(node, i + c.quote.length);
-      const mark = document.createElement("mark");
-      mark.className = "hl";
-      try { range.surroundContents(mark); } catch {}
-      break;
+    const { nodes, full } = visibleTextNodes(col);
+    let off = null;
+    if (c.from != null && c.to != null && c.to > c.from) {
+      const slice = full.slice(c.from, c.to);
+      if (slice === c.quote || normSpace(slice) === normSpace(c.quote)) off = { start: c.from, end: c.to };
+    }
+    if (!off) off = findQuoteOffsets(full, c.quote);
+    if (!off) continue;
+    if (useApi) {
+      const range = rangeFromOffsets(nodes, off.start, off.end);
+      if (range) hl.add(range);
+    } else {
+      applyMarkWrap(nodes, off.start, off.end);
     }
   }
+  if (hl) CSS.highlights.set("lbr-comment", hl);
+  layoutMarginComments();
 }
 
 let pending = null;
 const selBtn = document.getElementById("sel-btn");
+function elemFromNode(n) {
+  if (!n) return null;
+  return n.nodeType === 1 ? n : n.parentElement;
+}
+function pairFromSelection(sel, ev) {
+  const nodes = [elemFromNode(sel && sel.anchorNode), elemFromNode(sel && sel.focusNode)];
+  if (ev) nodes.push(document.elementFromPoint(ev.clientX, ev.clientY));
+  for (const node of nodes) {
+    const col = node && node.closest && node.closest(".col");
+    const pair = node && node.closest && node.closest(".pair");
+    if (col && pair) return { col, pair };
+  }
+  return null;
+}
+function placeSelBtn(x, y) {
+  selBtn.style.display = "block";
+  const bw = selBtn.offsetWidth || 88;
+  const bh = selBtn.offsetHeight || 32;
+  let left = x + 8;
+  let top = y + 8;
+  if (left + bw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - bw - 8);
+  if (top + bh > window.innerHeight - 8) top = Math.max(8, y - bh - 8);
+  if (left < 8) left = 8;
+  if (top < 8) top = 8;
+  selBtn.style.left = left + "px";
+  selBtn.style.top = top + "px";
+}
+function hideSelBtn() { selBtn.style.display = "none"; }
 document.addEventListener("mouseup", e => {
   if (selBtn.contains(e.target)) return;
   const sel = window.getSelection();
   const text = sel && String(sel).trim();
-  if (!text || text.length < 2) { selBtn.style.display = "none"; return; }
-  const node = sel.anchorNode && sel.anchorNode.parentElement;
-  const col = node && node.closest(".col");
-  const pair = node && node.closest(".pair");
-  if (!col || !pair) { selBtn.style.display = "none"; return; }
-  pending = { paraId: pair.dataset.id, side: col.dataset.side || "en", quote: text };
-  const r = sel.getRangeAt(0).getBoundingClientRect();
-  selBtn.style.left = (window.scrollX + r.left) + "px";
-  selBtn.style.top = (window.scrollY + r.bottom + 6) + "px";
-  selBtn.style.display = "block";
+  if (!text || text.length < 2) { hideSelBtn(); return; }
+  const hit = pairFromSelection(sel, e);
+  if (!hit) { hideSelBtn(); return; }
+  pending = Object.assign({ paraId: hit.pair.dataset.id, side: hit.col.dataset.side || "en" }, quoteFromHit(hit, sel));
+  if (!pending.quote || pending.quote.length < 2) pending.quote = text;
+  placeSelBtn(e.clientX, e.clientY);
 });
+document.getElementById("shell").addEventListener("scroll", hideSelBtn, { passive: true });
+window.addEventListener("scroll", hideSelBtn, { passive: true });
 selBtn.onclick = () => {
   if (!pending) return;
   document.getElementById("comp-quote").textContent = "「" + pending.quote.slice(0, 240) + "」 · " + pending.paraId;
   document.getElementById("comp-text").value = "";
   document.getElementById("composer").classList.add("visible");
+  layoutMarginComments();
   document.getElementById("comp-text").focus();
   selBtn.style.display = "none";
 };
-document.getElementById("comp-cancel").onclick = () => { document.getElementById("composer").classList.remove("visible"); pending = null; };
+document.getElementById("comp-cancel").onclick = () => {
+  document.getElementById("composer").classList.remove("visible");
+  pending = null;
+  document.body.appendChild(document.getElementById("composer"));
+  layoutMarginComments();
+};
 document.getElementById("comp-save").onclick = () => {
   const text = document.getElementById("comp-text").value.trim();
   if (!text || !pending) return;
   const list = loadComments();
-  list.push({ id: "c" + Date.now(), paraId: pending.paraId, side: pending.side, quote: pending.quote, comment: text, createdAt: new Date().toISOString() });
+  const row = { id: "c" + Date.now(), paraId: pending.paraId, side: pending.side, quote: pending.quote, comment: text, createdAt: new Date().toISOString() };
+  if (pending.from != null && pending.to != null) {
+    row.from = pending.from;
+    row.to = pending.to;
+  }
+  list.push(row);
   saveComments(list);
   document.getElementById("composer").classList.remove("visible");
   pending = null;
+  document.body.appendChild(document.getElementById("composer"));
   toast("已写入浏览器本地，尚未写入仓库文件");
 };
 
@@ -375,17 +660,19 @@ document.getElementById("btn-import").onchange = e => {
   e.target.value = "";
 };
 document.getElementById("btn-clear").onclick = () => { if (confirm("清空本机批注？")) saveComments([]); };
-function setPanelOpen(on) {
-  document.body.classList.toggle("panel-hidden", !on);
+function setNotesOpen(on) {
+  document.body.classList.toggle("notes-hidden", !on);
   document.getElementById("btn-toggle").textContent = on ? "隐藏批注栏" : "显示批注栏";
   try { localStorage.setItem(KEY + "-panel", on ? "1" : "0"); } catch {}
+  if (on) layoutMarginComments();
 }
 document.getElementById("btn-toggle").onclick = () => {
-  setPanelOpen(document.body.classList.contains("panel-hidden"));
+  setNotesOpen(document.body.classList.contains("notes-hidden"));
 };
 try {
-  if (localStorage.getItem(KEY + "-panel") === "0") setPanelOpen(false);
+  if (localStorage.getItem(KEY + "-panel") === "0") setNotesOpen(false);
 } catch {}
+window.addEventListener("resize", () => layoutMarginComments());
 document.getElementById("mode-bi").onclick = () => { MODE = "bi"; render(); };
 document.getElementById("mode-diff").onclick = () => { MODE = "diff"; render(); };
 document.getElementById("mode-both").onclick = () => { MODE = "both"; render(); };
@@ -403,7 +690,12 @@ if (!DATA || !DATA.units) {
   window.addEventListener("load", () => {
     if (!typesetMath()) {
       let n = 0;
-      const t = setInterval(() => { if (typesetMath() || ++n > 20) clearInterval(t); }, 150);
+      const t = setInterval(() => {
+        if (typesetMath() || ++n > 20) {
+          clearInterval(t);
+          paintHighlights();
+        }
+      }, 150);
     }
   });
 }

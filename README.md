@@ -4,6 +4,8 @@ Cursor Agent Skill：把 `.tex` 做成可划词批注的 HTML（中英对照 + W
 
 批注存在浏览器 `localStorage`，导出 JSON 后才能入库。生成对照页需要仓库里的 `.tex`；换对比版本必须重新跑脚本，HTML 里不能现场选 git commit。
 
+第一版 HTML 由 `templates/viewer.html` 决定：`itemize` 是项目符号，划词出现「添加批注」，右侧全局批注栏可整栏开关，栏内卡片对齐划选行。`build_review.py` 写盘即自检，失败则退出。
+
 ## 安装
 
 ```bash
@@ -24,7 +26,8 @@ latex-bilingual-review/
   SKILL.md              # Agent 指令（必填）
   examples.md
   reference.md
-  scripts/              # extract / align / build
+  evals/                # itemize / sel-btn / highlight / margin
+  scripts/              # extract / align / build / check_*
   templates/viewer.html
   vendor/katex/         # 离线公式
 ```

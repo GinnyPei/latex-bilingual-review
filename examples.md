@@ -16,14 +16,13 @@
 
 1. `extract_tex.py motiondrop.tex --sections 4,5` → `review/motiondrop_current.json`
 2. 为每个单位补 `zh`（公式用 `$...$`，不要写 `\\(`）
-3. `build_review.py` → `review/motiondrop_bilingual.html`
+3. `build_review.py` → `review/motiondrop_bilingual.html`（写盘自检通过才算完成）
 
-**你打开：** `review/motiondrop_bilingual.html`（file:// 或本地静态服务）
+**你打开：** 用 Chrome / Safari / Edge 打开 `review/motiondrop_bilingual.html`（file:// 或本地静态服务）。
 
-- 左：English / 中文并排
-- 右：批注栏（划词 → 添加批注 → 导出 JSON 覆盖 `review/motiondrop_comments.json`）
-
-本仓库已按此例生成过一页，见 `review/motiondrop_bilingual.html`。
+- 左：English / 中文并排；`itemize` 是项目符号
+- 划词出现「添加批注」；保存后卡片在右侧全局批注栏、对齐划选行。顶栏可整栏隐藏 / 显示
+- 导出 JSON 覆盖 `review/motiondrop_comments.json` 才能入库
 
 ## 例 2：全文对照
 
