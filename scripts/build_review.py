@@ -83,7 +83,7 @@ def verify_generated(html_out: Path) -> None:
         if not script.exists():
             raise SystemExit(f"missing {script.name}; first-build verify cannot run")
         proc = subprocess.run(
-            [sys.executable, str(script), str(html_out)],
+            [sys.executable, str(script), str(html_out.resolve())],
             cwd=str(SKILL_DIR),
             capture_output=True,
             text=True,
@@ -131,6 +131,8 @@ def main() -> None:
     payload = json.dumps(doc, ensure_ascii=False)
     html = html.replace("/*__REVIEW_DATA__*/null", payload)
     out = Path(args.out)
+    if not out.is_absolute():
+        out = (Path.cwd() / out).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     ensure_katex(out)
